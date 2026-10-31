@@ -1,0 +1,162 @@
+# RoadMap Studio (web) on one machine.
+#
+#   docker compose --env-file deploy.env up --build -d
+#
+# (lab.env is the same thing for the test setup with the test identity
+# provider - see DEPLOY.md.)
+#
+# Then open RMS_PUBLIC_URL. Sign-in is Microsoft Entra ID single sign-on; see
+# DEPLOY.md for the Azure side (it takes one metadata file in each direction).
+#
+# What starts:
+#   credentials-init  once: makes ./credentials/db_password the first time
+#   tls-init          once: makes a self-signed certificate in ./certs when
+#                     none is there - replace tls.crt / tls.key with a real
+#                     certificate and the app picks it up by itself
+#   postgres          the database (./pgdata). Everything is in it: people,
+#                     roadmaps, sharing, versions.
+#   roadmap           the app: HTTPS on host port 443 (RMS_PORT), port 80
+#                     (RMS_HTTP_PORT) redirects to it.
+#
+# `${VAR-default}` (no colon) is deliberate for every location: the default
+# applies only when the variable is unset, so an env file can set it EMPTY on
+# purpose (no registry prefix, no proxy). The defaults are the public
+# locations; a site with its own mirror or proxy names them in its env file.
+
+x-build: &build
+  context: .
+  # Without this block `docker compose build` passes no locations at all.
+  args:
+    IMAGE_REGISTRY: ${IMAGE_REGISTRY-}
+    GOPROXY: ${GOPROXY-https://proxy.golang.org,direct}
+    HTTP_PROXY: ${HTTP_PROXY-}
+    HTTPS_PROXY: ${HTTPS_PROXY-}
+    NO_PROXY: ${NO_PROXY-localhost,127.0.0.1}
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  # Runs to completion before anything else: makes the database password
+  # file once (random, never in this file or the image), owned by the app's
+  # uid 1000 at mode 0400. Postgres reads it as root. No network at all.
+  # Same image as the app, built by the `roadmap` service below: only ONE
+  # service builds it (parallel builds of one tag race), the others use it
+  # with pull_policy: never, so a missing image fails loudly instead of being
+  # pulled from Docker Hub, which has no such image.
+  credentials-init:
+    <<: *hardening
+    image: roadmap-studio:local
+    pull_policy: never
+    user: "0:0"
+    command: ["init-credentials"]
+    environment:
+      RMS_CREDENTIALS_DIR: /credentials
+    volumes:
+      - ./credentials:/credentials
+    network_mode: none
+    restart: "no"
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - DAC_OVERRIDE
+
+  # Makes a self-signed certificate when none is installed, for
+  # RMS_PUBLIC_URL's host plus RMS_TLS_HOSTNAME. Never touches one it finds.
+  tls-init:
+    <<: *hardening
+    image: roadmap-studio:local
+    pull_policy: never
+    user: "0:0"
+    command: ["tls-init"]
+    environment:
+      RMS_TLS_DIR: /certs
+      RMS_TLS_CERT_NAME: ${RMS_TLS_CERT_NAME:-tls.crt}
+      RMS_TLS_KEY_NAME: ${RMS_TLS_KEY_NAME:-tls.key}
+      RMS_PUBLIC_URL: ${RMS_PUBLIC_URL}
+      RMS_TLS_HOSTNAME: ${RMS_TLS_HOSTNAME:-}
+    volumes:
+      - ${RMS_CERTS_DIR:-./certs}:/certs
+    network_mode: none
+    restart: "no"
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - DAC_OVERRIDE
+
+  postgres:
+    image: ${IMAGE_REGISTRY-}postgres:16-alpine@sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571
+    container_name: roadmap-postgres
+    environment:
+      POSTGRES_DB: roadmap
+      POSTGRES_USER: roadmap
+      POSTGRES_PASSWORD_FILE: /credentials/db_password
+    volumes:
+      # A bind mount, so the data is on the host for backup (pg_dump through
+      # `docker exec roadmap-postgres pg_dump -U roadmap roadmap`). The
+      # postgres image sets the ownership of this folder itself.
+      - ./pgdata:/var/lib/postgresql/data
+      - ./credentials:/credentials:ro
+    depends_on:
+      credentials-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roadmap -d roadmap"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  roadmap:
+    <<: *hardening
+    build: *build
+    image: roadmap-studio:local
+    pull_policy: build
+    container_name: roadmap-studio
+    ports:
+      # Published ports, NOT host networking: the app runs unprivileged and
+      # cannot bind a port below 1024 itself (added capabilities do not reach
+      # a non-root process, and no-new-privileges blocks the file-capability
+      # route). Docker binds 443/80 and forwards to 8443 (HTTPS) and 8080
+      # (redirect to HTTPS). Outbound traffic is SNAT'd either way.
+      - "${RMS_PORT:-443}:8443"
+      - "${RMS_HTTP_PORT:-80}:8080"
+    environment:
+      RMS_PUBLIC_URL: ${RMS_PUBLIC_URL}
+      RMS_DATABASE_URL: postgres://roadmap@postgres:5432/roadmap?sslmode=disable
+      RMS_DB_PASSWORD_FILE: /credentials/db_password
+      RMS_AUTH_MODE: ${RMS_AUTH_MODE:-saml}
+      RMS_DEV_LOGIN_ACKNOWLEDGE: ${RMS_DEV_LOGIN_ACKNOWLEDGE:-}
+      RMS_SAML_METADATA_URL: ${RMS_SAML_METADATA_URL:-}
+      RMS_SAML_METADATA_FILE: ${RMS_SAML_METADATA_FILE:-}
+      RMS_SAML_ENTITY_ID: ${RMS_SAML_ENTITY_ID:-}
+      RMS_SAML_TENANT_ID: ${RMS_SAML_TENANT_ID:-}
+      RMS_SAML_ALLOWED_GROUPS: ${RMS_SAML_ALLOWED_GROUPS:-}
+      RMS_ADMIN_EMAILS: ${RMS_ADMIN_EMAILS:-}
+      # Local administrator admin/admin (change it at first sign-in); "off" refuses it.
+      RMS_LOCAL_ADMIN: ${RMS_LOCAL_ADMIN:-on}
+      # Only for reading the identity provider's metadata URL. Deliberately not
+      # HTTP_PROXY: a process-wide proxy would also catch internal calls.
+      RMS_OUTBOUND_PROXY: ${RMS_OUTBOUND_PROXY-}
+      RMS_TLS_CERT_NAME: ${RMS_TLS_CERT_NAME:-tls.crt}
+      RMS_TLS_KEY_NAME: ${RMS_TLS_KEY_NAME:-tls.key}
+    volumes:
+      - ${RMS_CERTS_DIR:-./certs}:/certs:ro
+      - ./credentials:/credentials:ro
+      # A metadata XML file, when RMS_SAML_METADATA_FILE is used instead of a URL.
+      - ./saml:/saml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      tls-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 512m, cpus: "2.0" }

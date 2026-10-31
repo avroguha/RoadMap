@@ -1,0 +1,104 @@
+{
+  "github.com/beevik/etree@v1.5.0": {
+    "published": "2025-01-30T04:01:40Z"
+  },
+  "github.com/creack/pty@v1.1.9": {
+    "published": "2019-09-25T15:36:33Z"
+  },
+  "github.com/crewjam/saml@v0.5.1": {
+    "published": "2025-04-14T11:14:07Z"
+  },
+  "github.com/davecgh/go-spew@v1.1.1": {
+    "published": "2018-02-21T23:26:28Z"
+  },
+  "github.com/golang-jwt/jwt/v4@v4.5.2": {
+    "published": "2025-03-21T20:49:30Z"
+  },
+  "github.com/google/go-cmp@v0.6.0": {
+    "published": "2023-08-31T17:32:40Z"
+  },
+  "github.com/jackc/pgpassfile@v1.0.0": {
+    "published": "2019-03-30T16:09:02Z"
+  },
+  "github.com/jackc/pgservicefile@v0.0.0-20240606120523-5a60cdf6a761": {
+    "published": "2024-06-06T12:05:23Z"
+  },
+  "github.com/jackc/pgx/v5@v5.11.0": {
+    "published": "2026-09-07T23:39:32Z"
+  },
+  "github.com/jackc/puddle/v2@v2.2.2": {
+    "published": "2024-09-10T11:12:31Z"
+  },
+  "github.com/jonboulle/clockwork@v0.2.2": {
+    "published": "2020-09-29T17:17:40Z"
+  },
+  "github.com/kr/pretty@v0.3.0": {
+    "published": "2020-11-24T22:22:38Z"
+  },
+  "github.com/kr/pty@v1.1.1": {
+    "published": "2018-01-13T18:08:13Z"
+  },
+  "github.com/kr/text@v0.2.0": {
+    "published": "2020-02-14T20:31:06Z"
+  },
+  "github.com/mattermost/xml-roundtrip-validator@v0.1.0": {
+    "published": "2020-12-19T04:09:09Z"
+  },
+  "github.com/pkg/diff@v0.0.0-20210226163009-20ebb0f2a09e": {
+    "published": "2021-02-26T16:30:09Z"
+  },
+  "github.com/pkg/errors@v0.9.1": {
+    "published": "2020-01-14T19:47:44Z"
+  },
+  "github.com/pmezard/go-difflib@v1.0.0": {
+    "published": "2016-01-10T10:55:54Z"
+  },
+  "github.com/rogpeppe/go-internal@v1.8.0": {
+    "published": "2021-03-12T18:06:33Z"
+  },
+  "github.com/russellhaering/goxmldsig@v1.4.0": {
+    "published": "2023-04-20T15:31:39Z"
+  },
+  "github.com/stretchr/objx@v0.1.0": {
+    "published": "2018-01-06T01:13:53Z"
+  },
+  "github.com/stretchr/testify@v1.11.1": {
+    "published": "2025-08-27T10:46:31Z"
+  },
+  "golang.org/x/crypto@v0.33.0": {
+    "published": "2025-02-04T19:03:03Z"
+  },
+  "golang.org/x/mod@v0.27.0": {
+    "published": "2025-08-07T14:51:59Z"
+  },
+  "golang.org/x/net@v0.21.0": {
+    "published": "2024-02-07T21:51:58Z"
+  },
+  "golang.org/x/sync@v0.17.0": {
+    "published": "2025-08-13T14:47:05Z"
+  },
+  "golang.org/x/sys@v0.30.0": {
+    "published": "2025-01-31T15:57:49Z"
+  },
+  "golang.org/x/term@v0.29.0": {
+    "published": "2025-02-04T15:50:00Z"
+  },
+  "golang.org/x/text@v0.29.0": {
+    "published": "2025-09-08T03:32:21Z"
+  },
+  "golang.org/x/tools@v0.36.0": {
+    "published": "2025-08-07T20:42:58Z"
+  },
+  "gopkg.in/check.v1@v1.0.0-20201130134442-10cb98267c6c": {
+    "published": "2020-11-30T13:44:42Z"
+  },
+  "gopkg.in/errgo.v2@v2.1.0": {
+    "published": "2018-08-23T07:15:05Z"
+  },
+  "gopkg.in/yaml.v3@v3.0.1": {
+    "published": "2022-05-27T08:35:30Z"
+  },
+  "gotest.tools@v2.2.0+incompatible": {
+    "published": "2018-11-11T18:29:05Z"
+  }
+}

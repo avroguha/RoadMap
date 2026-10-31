@@ -1,0 +1,12 @@
+# Deployment state - anchored, so a source folder of the same name deeper in
+# the tree is never ignored by accident.
+/pgdata/
+/credentials/
+/certs/
+/saml/*.xml
+# Local builds and test leftovers
+/roadmap
+/roadmap.exe
+/devidp-state/
+/build/
+node_modules/

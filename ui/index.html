@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RoadMap Studio</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="menubar card" id="menubar"></header>
+<section class="ribbon card" id="ribbon"></section>
+<nav id="tabs" class="tabs" aria-label="Roadmaps"></nav>
+<div id="sharedbar" class="sharedbar" hidden></div>
+
+<main class="work">
+  <aside class="card panel" id="outline"></aside>
+  <section class="card stage" id="stage">
+    <div class="scroller" id="scroller"><svg id="tl" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div class="hint" id="hint"></div>
+  </section>
+  <aside class="card panel" id="inspector"></aside>
+</main>
+
+<div class="insights-grip" id="insightsGrip" title="Drag to resize the charts" hidden></div>
+<section class="insights" id="insights" hidden></section>
+
+<div id="menu" class="menu card" hidden></div>
+<div id="tip" class="tip" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<div id="modal" class="modal" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

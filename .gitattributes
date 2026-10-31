@@ -1,0 +1,7 @@
+# Normalise line endings: LF in the repository, native in the working copy.
+* text=auto
+*.sh text eol=lf
+*.png binary
+*.ico binary
+*.icns binary
+*.syso binary

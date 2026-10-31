@@ -1,0 +1,10 @@
+pgdata
+credentials
+certs
+saml
+devidp-state
+build
+test
+testdata
+*.md
+.git

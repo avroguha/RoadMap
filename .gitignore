@@ -1,0 +1,7 @@
+# Built binaries and generated resources
+/dist/
+*.syso
+# Desktop-app test leftovers
+/roadmap-studio-test*/
+node_modules/
+/.claude/

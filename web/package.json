@@ -1,0 +1,7 @@
+{
+  "name": "roadmap-web-tests",
+  "private": true,
+  "type": "module",
+  "description": "Browser-side tests only: no dependencies, nothing to install. The app itself is Go.",
+  "scripts": { "test": "node --test \"test/*.test.js\"" }
+}
