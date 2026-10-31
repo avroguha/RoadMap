@@ -1,8 +1,9 @@
 package main
 
-// Guards for the deployment files. Every one of these broke a real build
-// once; they keep the build reproducible, unprivileged and supply-chain gated,
-// and keep every external location overridable from the env file.
+// Guards for the company deployment rules (see the corporate-docker-deployment
+// playbook). Every one of these broke a real build once, usually after the
+// project was copied between home and work. avro.com stands for the company
+// domain; the real names go in work.env and the Dockerfile at deployment.
 
 import (
 	"bufio"
@@ -44,16 +45,16 @@ func envFile(t *testing.T, p string) map[string]string {
 var locationKeys = []string{"IMAGE_REGISTRY", "GOPROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
 
 const (
-	defaultGoProxy = "https://proxy.golang.org,direct"
-	defaultNoProxy = "localhost,127.0.0.1"
+	companyRegistry = "registry.avro.com/"
+	companyProxy    = "http://proxy.avro.com:8000"
+	companyGoProxy  = "https://artifactory.avro.com/artifactory/api/go/go-public/"
+	companyNoProxy  = "localhost,127.0.0.1,.avro.com,avro.com"
 )
 
-// Public defaults in every stage, nothing site-specific baked in, and nothing
-// that a site's mirror or proxy cannot replace through the build arguments.
-func TestDockerfileDefaultsToPublicLocations(t *testing.T) {
+func TestDockerfileDefaultsToCompanyLocations(t *testing.T) {
 	df := readFile(t, "Dockerfile")
-	if !strings.Contains(df, "ARG IMAGE_REGISTRY=\n") {
-		t.Error("IMAGE_REGISTRY must default to empty (plain Docker Hub paths)")
+	if !strings.Contains(df, "ARG IMAGE_REGISTRY="+companyRegistry+"\n") {
+		t.Error("IMAGE_REGISTRY must default to " + companyRegistry)
 	}
 	stages := regexp.MustCompile(`(?m)^FROM `).Split(df, -1)[1:]
 	if len(stages) != 2 {
@@ -61,9 +62,9 @@ func TestDockerfileDefaultsToPublicLocations(t *testing.T) {
 	}
 	for i, st := range stages {
 		for _, want := range []string{
-			"ARG HTTP_PROXY=\n", "ARG HTTPS_PROXY=\n", "ARG NO_PROXY=" + defaultNoProxy + "\n",
+			"ARG HTTP_PROXY=" + companyProxy, "ARG HTTPS_PROXY=" + companyProxy, "ARG NO_PROXY=" + companyNoProxy,
 			"ARG http_proxy=${HTTP_PROXY}", "ARG https_proxy=${HTTPS_PROXY}", "ARG no_proxy=${NO_PROXY}",
-			"ARG GOPROXY=" + defaultGoProxy + "\n",
+			"ARG GOPROXY=" + companyGoProxy,
 		} {
 			if !strings.Contains(st, want) {
 				t.Errorf("stage %d: missing %q (ARG is scoped to one stage)", i+1, want)
@@ -86,11 +87,11 @@ func TestDockerfileDefaultsToPublicLocations(t *testing.T) {
 	}
 	code := regexp.MustCompile(`(?m)^\s*#.*$`).ReplaceAllString(df, "") // comments may name what is banned
 	if strings.HasPrefix(strings.TrimSpace(df), "# syntax=") {
-		t.Error("a # syntax= directive needs BuildKit; the file must build on the legacy builder too")
+		t.Error("a # syntax= directive needs BuildKit: the work build host has no buildx")
 	}
 	for _, bad := range []string{"RUN --mount", "COPY --chmod", "COPY --link", "<<EOF", "<<'EOF'"} {
 		if strings.Contains(code, bad) {
-			t.Errorf("BuildKit-only syntax %q: the file must build on the legacy builder too", bad)
+			t.Errorf("BuildKit-only syntax %q: the work build host has no buildx", bad)
 		}
 	}
 	if !strings.Contains(final, "userdel -r ubuntu") {
@@ -125,8 +126,8 @@ func TestEveryImageIsPinnedAndOldEnough(t *testing.T) {
 			t.Errorf("image without a digest pin: %s", line)
 			continue
 		}
-		if strings.HasPrefix(line, "image:") && !strings.Contains(line, "${IMAGE_REGISTRY-}") {
-			t.Errorf("image not pulled through ${IMAGE_REGISTRY-}: %s", line)
+		if strings.HasPrefix(line, "image:") && !strings.Contains(line, "${IMAGE_REGISTRY-"+companyRegistry+"}") {
+			t.Errorf("image not pulled through ${IMAGE_REGISTRY-%s}: %s", companyRegistry, line)
 		}
 		e, ok := cache[m[1]+"@"+m[2]]
 		if !ok {
@@ -143,15 +144,15 @@ func TestComposeKeepsLocationsOverridable(t *testing.T) {
 	dc := readFile(t, "docker-compose.yml")
 	for _, k := range locationKeys {
 		if strings.Contains(dc, "${"+k+":-") {
-			t.Errorf("${%s:-...} replaces an EMPTY value with the default - an env file empties it on purpose; use ${%s-...}", k, k)
+			t.Errorf("${%s:-...} replaces an EMPTY value with the default - home.env empties it on purpose; use ${%s-...}", k, k)
 		}
 		if !strings.Contains(dc, k+": ${"+k+"-") {
 			t.Errorf("build args must pass %s through", k)
 		}
 	}
-	for _, k := range []string{"IMAGE_REGISTRY", "HTTP_PROXY", "HTTPS_PROXY"} {
-		if !strings.Contains(dc, k+": ${"+k+"-}") {
-			t.Errorf("%s must default to empty in the compose file (no site baked in)", k)
+	for _, public := range []string{"registry.npmjs.org", "pypi.org", "docker.io/", "quay.io/", "ghcr.io/", "proxy.golang.org"} {
+		if strings.Contains(dc, public) || strings.Contains(readFile(t, "Dockerfile"), public) {
+			t.Errorf("a deployment file falls back to the public %s", public)
 		}
 	}
 	if !strings.Contains(dc, "pull_policy: build") || strings.Count(dc, "pull_policy: never") < 2 {
@@ -166,37 +167,38 @@ func TestComposeKeepsLocationsOverridable(t *testing.T) {
 }
 
 func TestEnvFilesMatchAndHoldNoSecrets(t *testing.T) {
-	deploy, lab := envFile(t, "deploy.env"), envFile(t, "lab.env")
-	for k := range deploy {
-		if _, ok := lab[k]; !ok {
-			t.Errorf("%s is in deploy.env but not lab.env", k)
+	work, home := envFile(t, "work.env"), envFile(t, "home.env")
+	for k := range work {
+		if _, ok := home[k]; !ok {
+			t.Errorf("%s is in work.env but not home.env", k)
 		}
 	}
-	for k := range lab {
-		if _, ok := deploy[k]; !ok {
-			t.Errorf("%s is in lab.env but not deploy.env", k)
+	for k := range home {
+		if _, ok := work[k]; !ok {
+			t.Errorf("%s is in home.env but not work.env", k)
 		}
 	}
-	for _, k := range locationKeys {
-		if _, ok := deploy[k]; !ok {
-			t.Errorf("deploy.env must carry %s, even empty, so a site sees where to put its own location", k)
+	want := map[string]string{"IMAGE_REGISTRY": companyRegistry, "GOPROXY": companyGoProxy, "HTTP_PROXY": companyProxy, "HTTPS_PROXY": companyProxy, "NO_PROXY": companyNoProxy}
+	for k, v := range want {
+		if work[k] != v {
+			t.Errorf("work.env %s=%q, want %q", k, work[k], v)
 		}
 	}
 	for _, k := range []string{"IMAGE_REGISTRY", "HTTP_PROXY", "HTTPS_PROXY"} {
-		if deploy[k] != "" {
-			t.Errorf("deploy.env %s=%q: the template names no site; leave it empty", k, deploy[k])
+		if v, ok := home[k]; !ok || v != "" {
+			t.Errorf("home.env must set %s to EMPTY (the line must stay)", k)
 		}
 	}
 	secret := regexp.MustCompile(`(TOKEN|PASSWORD|SECRET|_KEY)$`)
-	for name, f := range map[string]map[string]string{"deploy.env": deploy, "lab.env": lab} {
+	for name, f := range map[string]map[string]string{"work.env": work, "home.env": home} {
 		for k, v := range f {
 			if secret.MatchString(k) && v != "" {
 				t.Errorf("%s holds a value for %s - secrets never go in a committed env file", name, k)
 			}
 		}
 	}
-	if deploy["RMS_DEV_LOGIN_ACKNOWLEDGE"] != "" || deploy["RMS_AUTH_MODE"] != "saml" {
-		t.Error("deploy.env must use SAML sign-in and never the test login")
+	if work["RMS_DEV_LOGIN_ACKNOWLEDGE"] != "" || work["RMS_AUTH_MODE"] != "saml" {
+		t.Error("work.env must use SAML sign-in and never the test login")
 	}
 }
 
@@ -209,7 +211,7 @@ func TestGitignoreIsAnchoredAndKeepsEnvFiles(t *testing.T) {
 	}
 	for _, l := range strings.Split(gi, "\n") {
 		l = strings.TrimSpace(l)
-		if l == "deploy.env" || l == "lab.env" || l == "*.env" {
+		if l == "work.env" || l == "home.env" || l == "*.env" {
 			t.Errorf(".gitignore ignores %s - the env files are committed", l)
 		}
 		if l == "certs/" || l == "credentials/" || l == "pgdata/" {

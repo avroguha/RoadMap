@@ -3,7 +3,7 @@ package main
 // Single sign-on settings an administrator edits in the app: where the
 // identity provider's metadata comes from (a URL or pasted XML), the entity
 // id and tenant pin, and which Azure groups may or may not sign in. Saved in
-// app_settings; the environment (deploy.env) only provides the starting values
+// app_settings; the environment (work.env) only provides the starting values
 // until something is saved here.
 
 import (

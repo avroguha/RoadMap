@@ -22,7 +22,7 @@ import (
 )
 
 // certWatcher serves the certificate in RMS_TLS_DIR and picks up a
-// replacement by itself: drop a real certificate over the self-signed
+// replacement by itself: drop the company certificate over the self-signed
 // one and new connections use it within a minute, no restart.
 type certWatcher struct {
 	certPath, keyPath string
@@ -140,7 +140,7 @@ func tlsInit() error {
 	if err := os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644); err != nil {
 		return err
 	}
-	log.Printf("tls-init: made a self-signed certificate for %s in %s - replace %s and %s with a real certificate when you have one",
+	log.Printf("tls-init: made a self-signed certificate for %s in %s - replace %s and %s with the company certificate when you have it",
 		strings.Join(hosts, ", "), dir, filepath.Base(certPath), filepath.Base(keyPath))
 	return chownTree(dir, uid)
 }

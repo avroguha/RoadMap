@@ -168,7 +168,7 @@ func pinnedImages() ([]string, error) {
 			return nil, err
 		}
 		for _, m := range pinRE.FindAllStringSubmatch(string(b), -1) {
-			name := m[1]
+			name := strings.TrimPrefix(m[1], "registry.avro.com/")
 			seen[name+"@"+m[2]] = true
 		}
 	}

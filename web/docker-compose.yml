@@ -1,9 +1,7 @@
 # RoadMap Studio (web) on one machine.
 #
-#   docker compose --env-file deploy.env up --build -d
-#
-# (lab.env is the same thing for the test setup with the test identity
-# provider - see DEPLOY.md.)
+#   Company:   docker compose --env-file work.env up --build -d
+#   Home lab:  docker compose --env-file home.env up --build -d
 #
 # Then open RMS_PUBLIC_URL. Sign-in is Microsoft Entra ID single sign-on; see
 # DEPLOY.md for the Azure side (it takes one metadata file in each direction).
@@ -11,27 +9,27 @@
 # What starts:
 #   credentials-init  once: makes ./credentials/db_password the first time
 #   tls-init          once: makes a self-signed certificate in ./certs when
-#                     none is there - replace tls.crt / tls.key with a real
-#                     certificate and the app picks it up by itself
+#                     none is there - replace tls.crt / tls.key with the
+#                     company certificate and the app picks it up by itself
 #   postgres          the database (./pgdata). Everything is in it: people,
 #                     roadmaps, sharing, versions.
 #   roadmap           the app: HTTPS on host port 443 (RMS_PORT), port 80
 #                     (RMS_HTTP_PORT) redirects to it.
 #
 # `${VAR-default}` (no colon) is deliberate for every location: the default
-# applies only when the variable is unset, so an env file can set it EMPTY on
-# purpose (no registry prefix, no proxy). The defaults are the public
-# locations; a site with its own mirror or proxy names them in its env file.
+# applies only when the variable is unset, so home.env can set it EMPTY - which
+# is how it turns the proxy off and uses Docker Hub. With no env file at all,
+# the company locations apply (avro.com stands for the company domain).
 
 x-build: &build
   context: .
   # Without this block `docker compose build` passes no locations at all.
   args:
-    IMAGE_REGISTRY: ${IMAGE_REGISTRY-}
-    GOPROXY: ${GOPROXY-https://proxy.golang.org,direct}
-    HTTP_PROXY: ${HTTP_PROXY-}
-    HTTPS_PROXY: ${HTTPS_PROXY-}
-    NO_PROXY: ${NO_PROXY-localhost,127.0.0.1}
+    IMAGE_REGISTRY: ${IMAGE_REGISTRY-registry.avro.com/}
+    GOPROXY: ${GOPROXY-https://artifactory.avro.com/artifactory/api/go/go-public/}
+    HTTP_PROXY: ${HTTP_PROXY-http://proxy.avro.com:8000}
+    HTTPS_PROXY: ${HTTPS_PROXY-http://proxy.avro.com:8000}
+    NO_PROXY: ${NO_PROXY-localhost,127.0.0.1,.avro.com,avro.com}
 
 x-hardening: &hardening
   read_only: true
@@ -49,7 +47,8 @@ services:
   # Same image as the app, built by the `roadmap` service below: only ONE
   # service builds it (parallel builds of one tag race), the others use it
   # with pull_policy: never, so a missing image fails loudly instead of being
-  # pulled from Docker Hub, which has no such image.
+  # pulled from Docker Hub - which has no such image and which the company
+  # network refuses anyway.
   credentials-init:
     <<: *hardening
     image: roadmap-studio:local
@@ -91,7 +90,7 @@ services:
       - DAC_OVERRIDE
 
   postgres:
-    image: ${IMAGE_REGISTRY-}postgres:16-alpine@sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571
+    image: ${IMAGE_REGISTRY-registry.avro.com/}postgres:16-alpine@sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571
     container_name: roadmap-postgres
     environment:
       POSTGRES_DB: roadmap
@@ -143,7 +142,7 @@ services:
       RMS_LOCAL_ADMIN: ${RMS_LOCAL_ADMIN:-on}
       # Only for reading the identity provider's metadata URL. Deliberately not
       # HTTP_PROXY: a process-wide proxy would also catch internal calls.
-      RMS_OUTBOUND_PROXY: ${RMS_OUTBOUND_PROXY-}
+      RMS_OUTBOUND_PROXY: ${RMS_OUTBOUND_PROXY-http://proxy.avro.com:8000}
       RMS_TLS_CERT_NAME: ${RMS_TLS_CERT_NAME:-tls.crt}
       RMS_TLS_KEY_NAME: ${RMS_TLS_KEY_NAME:-tls.key}
     volumes:

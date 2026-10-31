@@ -4,13 +4,15 @@ One host with Docker. Two containers stay running (`roadmap`, `postgres`); two
 small steps run once at each start (`credentials-init`, `tls-init`).
 
 ```bash
-docker compose --env-file deploy.env up --build -d
+docker compose --env-file work.env up --build -d     # company
+docker compose --env-file home.env up --build -d     # home lab
 ```
 
-Before the first start, edit three lines in `deploy.env`: `RMS_PUBLIC_URL`,
-`RMS_SAML_METADATA_URL`, `RMS_ADMIN_EMAILS` (none is secret). A site with its
-own Docker Hub mirror, Go module proxy or outbound proxy names them at the end
-of the same file; the defaults are the public locations.
+`work.env` already points at the company registry (registry.avro.com), Artifactory
+and proxy - `avro.com` stands for the company domain; put the real names in
+`work.env` (and the Dockerfile defaults) when deploying. Before the first
+start, edit three lines in it: `RMS_PUBLIC_URL`, `RMS_SAML_METADATA_URL`,
+`RMS_ADMIN_EMAILS` (none is secret).
 `RMS_SAML_METADATA_URL` may stay empty for the first start - see
 [the local administrator](#the-local-administrator) below.
 
@@ -33,7 +35,7 @@ and get back in if SSO ever breaks. While SSO is not configured,
 - Only the hash is stored (PBKDF2-SHA256, 600,000 rounds). Five wrong
   passwords from one address lock that address out for 15 minutes; 30 from
   anywhere lock the account for 15 minutes (SSO sign-in is unaffected).
-- **Turn it off** with `RMS_LOCAL_ADMIN=off` in deploy.env once SSO works and
+- **Turn it off** with `RMS_LOCAL_ADMIN=off` in work.env once SSO works and
   you would rather nobody could sign in with a password. Its open sessions
   stop working too; `on` brings it back with the same password.
 
@@ -57,7 +59,7 @@ and get back in if SSO ever breaks. While SSO is not configured,
    `displayname` when present. Add a **group claim** only if you use
    `RMS_SAML_ALLOWED_GROUPS`.
 4. **SAML Certificates**: copy the **App Federation Metadata Url**. Either
-   put it in `RMS_SAML_METADATA_URL` in deploy.env, or - after the first start -
+   put it in `RMS_SAML_METADATA_URL` in work.env, or - after the first start -
    sign in as the local administrator and enter it under **Tools > Users &
    sign-in** (a pasted *Federation Metadata XML* works there too). Settings
    saved in the app are stored in the database, apply to every server, and
@@ -84,7 +86,7 @@ sign-in shows each certificate's expiry date.
 ## 2. The host
 
 - **Certificate:** the first start makes a self-signed one in `./certs`
-  (browsers warn). Replace `tls.crt` and `tls.key` (PEM) with a real
+  (browsers warn). Replace `tls.crt` and `tls.key` (PEM) with the company
   certificate - the app picks it up within a minute, no restart. If the
   outbound proxy re-signs TLS, put its CA there as `ca.crt`.
 - **Ports:** 443 (HTTPS) and 80 (redirects to HTTPS). Change with `RMS_PORT` /
@@ -112,9 +114,8 @@ sign-in shows each certificate's expiry date.
 
 - Nothing published in the last 72 hours is built in. The Docker build runs
   `tools/agegate -check -hours 72` right after downloading the Go modules and
-  reads only the committed `go-publish-times.json`, so the build needs no
-  access to the registries and gives the same answer everywhere.
-  `go run ./tools/agegate -refresh` (on a machine with internet access)
+  reads only the committed `go-publish-times.json` (the work network cannot
+  reach the public registries). At home, `go run ./tools/agegate -refresh`
   rewrites that file and `image-digests.json`; commit both.
 - Every image is pinned by digest through `${IMAGE_REGISTRY}`; a pin may only
   move to an image that was already 72 hours old (asserted by `deploy_test.go`).
@@ -133,12 +134,11 @@ the presenter's view (roadmap, zoom, scroll position, spotlit item) travels in
 the presence stream through Postgres NOTIFY, so a follower served by another
 container sees the same thing within about 300 ms.
 
-## Test setup
+## Home lab test setup
 
-`lab.env` (`docker compose --env-file lab.env up --build -d`) signs in through
-`tools/devidp`, a TEST identity provider that answers like Entra ID (same
-claims, signed assertions) so the real SAML path is exercised without Azure.
-On the test host (the file assumes 192.168.5.254 - change both addresses):
+`home.env` signs in through `tools/devidp`, a TEST identity provider that
+answers like Entra ID (same claims, signed assertions) so the real SAML path is
+exercised without Azure. On the lab host (CT 9250, 192.168.5.254):
 
 ```bash
 go build -o devidp ./tools/devidp     # or GOOS=linux on another machine

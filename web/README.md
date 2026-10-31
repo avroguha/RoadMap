@@ -5,7 +5,7 @@ ribbon, charts, dependencies, initiatives, key dates, placeholders and exports -
 with the roadmaps on a server, Microsoft Entra ID single sign-on, and roadmaps
 shared and edited by several people at once.
 
-- **Deploy:** see [DEPLOY.md](DEPLOY.md) - `docker compose --env-file deploy.env up --build -d`.
+- **Deploy:** see [DEPLOY.md](DEPLOY.md) - `docker compose --env-file work.env up --build -d`.
 - **Sign-in:** SAML, configured from Azure's federation metadata URL; the app
   publishes its own metadata at `/saml/metadata` for the Azure side. People are
   created automatically at their first sign-in. A local administrator account

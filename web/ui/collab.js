@@ -421,7 +421,7 @@ export async function adminDialog() {
     put(sso,
       s.mode === 'dev' ? h('div', { class: 'warnbox', text: 'TEST SIGN-IN MODE - anyone can sign in as anyone. Not for real data.' }) : null,
       s.mode === 'saml' && !s.configured ? h('div', { class: 'warnbox', text: 'Single sign-on is not configured yet: only the local administrator can sign in. Fill in step 2 and save.' }) : null,
-      v.fromEnv && s.configured ? h('p', { class: 'meta-note', text: 'These values come from the server configuration (deploy.env). Saving here replaces them, for every server.' }) : null,
+      v.fromEnv && s.configured ? h('p', { class: 'meta-note', text: 'These values come from the server configuration (work.env). Saving here replaces them, for every server.' }) : null,
       h('div', { class: 'lbl', text: '1. Give Azure these (or upload the metadata file)' }),
       row('Identifier (Entity ID)', s.entityId), row('Reply URL (ACS)', s.acsUrl), row('Sign on URL', s.signOnUrl),
       h('a', { class: 'btn small', href: '/saml/metadata', download: 'roadmap-studio-saml-metadata.xml' }, icon('download'), 'Download metadata XML'),
