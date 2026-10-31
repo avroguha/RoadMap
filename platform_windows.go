@@ -271,7 +271,7 @@ func globalCopy(data []byte) (uintptr, error) {
 }
 
 // copyPNGToClipboard places the image as both a DIB (for Office and Paint)
-// and the registered "PNG" format (for apps that keep full fidelity).
+// and the registered "PNG" format (for apps that keep full quality).
 func copyPNGToClipboard(pngData []byte) error {
 	src, err := png.Decode(bytes.NewReader(pngData))
 	if err != nil {
